@@ -10,6 +10,8 @@ import threading
 from typing import List, Dict, Tuple, Optional
 from dataclasses import dataclass
 import json
+import difflib
+import shutil
 
 # energy tracking imports
 try:
@@ -325,44 +327,100 @@ def print_enhanced_report(analyses: List[FunctionAnalysis], total_energy: Option
         print(f"  async functions: {async_count}")
         print(f"  threaded functions: {threaded_count}")
 
-# --- section 7: main entrypoint ---
+# --- section: code cleaning and safe removal ---
+def remove_dead_code_from_source(source: str, unused_funcs: list) -> str:
+    """
+    remove unused function definitions from the source code.
+    """
+    tree = ast.parse(source)
+    new_body = []
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef) and node.name in unused_funcs:
+            continue  # skip dead code
+        new_body.append(node)
+    tree.body = new_body
+    return ast.unparse(tree)
+
+# --- section: gpt-powered code rewriting ---
+def rewrite_inefficient_code(function_code: str, api_key: str) -> str:
+    """
+    use gpt api to rewrite inefficient code sections (loops, branches).
+    """
+    if not LLM_AVAILABLE or not api_key:
+        return function_code
+    prompt = f"rewrite this python function to be more efficient, especially optimizing loops and branches. only return the improved function code.\n\n{function_code}"
+    try:
+        client = openai.OpenAI(api_key=api_key)
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=300
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        return function_code
+
+# --- update main to support new flags and features ---
 def main():
-    """main function for enhanced code analysis"""
+    """main function for enhanced code analysis with phase 2 features"""
     import argparse
     
-    parser = argparse.ArgumentParser(description="enhanced code analyzer with energy metrics and ai insights")
+    parser = argparse.ArgumentParser(description="enhanced code analyzer with energy metrics, ai insights, and refactoring features")
     parser.add_argument('path', type=str, help='path to python file or directory')
-    parser.add_argument('--openai-key', type=str, help='openai api key for ai analysis')
+    parser.add_argument('--openai-key', type=str, help='openai api key for ai analysis and rewriting')
     parser.add_argument('--track-energy', action='store_true', help='enable energy tracking')
+    parser.add_argument('--safe-remove', action='store_true', help='copy and strip dead code automatically')
+    parser.add_argument('--show-diff', action='store_true', help='show code diff for suggested deletions')
+    parser.add_argument('--rewrite-inefficient', action='store_true', help='use gpt to rewrite inefficient code sections')
     
     args = parser.parse_args()
     
-    # initialize components
     energy_tracker = EnergyTracker()
     llm_analyzer = LLMAnalyzer(args.openai_key)
     
     if args.track_energy:
         energy_tracker.start_tracking()
     
-    # analyze files
     all_analyses = []
-    
+    filepaths = []
     if os.path.isdir(args.path):
         for root, _, files in os.walk(args.path):
             for file in files:
                 if file.endswith('.py'):
-                    filepath = os.path.join(root, file)
-                    analyses = analyze_file_enhanced(filepath, energy_tracker, llm_analyzer)
-                    all_analyses.extend(analyses)
+                    filepaths.append(os.path.join(root, file))
     else:
-        analyses = analyze_file_enhanced(args.path, energy_tracker, llm_analyzer)
-        all_analyses.extend(analyses)
+        filepaths.append(args.path)
     
-    # stop energy tracking and print report
+    for filepath in filepaths:
+        analyses = analyze_file_enhanced(filepath, energy_tracker, llm_analyzer)
+        all_analyses.extend(analyses)
+        unused_funcs = [a.name for a in analyses if a.is_unused]
+        if unused_funcs:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                original_code = f.read()
+            cleaned_code = remove_dead_code_from_source(original_code, unused_funcs)
+            # show diff if requested
+            if args.show_diff:
+                diff = generate_diff(original_code, cleaned_code, filepath)
+                print(f"\ncode diff for {filepath} (suggested deletions):\n")
+                print(diff)
+            # safe-remove: write cleaned file
+            if args.safe_remove:
+                cleaned_path = filepath + ".cleaned.py"
+                with open(cleaned_path, 'w', encoding='utf-8') as f:
+                    f.write(cleaned_code)
+                print(f"\nsafe-removed file written to: {cleaned_path}")
+        # rewrite inefficient code
+        if args.rewrite_inefficient and args.openai_key:
+            for a in analyses:
+                if a.estimated_flops > 50:  # threshold for inefficiency
+                    function_code = ast.unparse([node for node in ast.parse(original_code).body if isinstance(node, ast.FunctionDef) and node.name == a.name][0])
+                    improved_code = rewrite_inefficient_code(function_code, args.openai_key)
+                    print(f"\nrewritten code for inefficient function {a.name}:\n{improved_code}\n")
+    
     total_energy = None
     if args.track_energy:
         total_energy = energy_tracker.stop_tracking()
-    
     print_enhanced_report(all_analyses, total_energy)
 
 if __name__ == "__main__":
