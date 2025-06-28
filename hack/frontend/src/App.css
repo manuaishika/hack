@@ -1,0 +1,14 @@
+/* additional custom styles for the app */
+.diff-view {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 12px;
+}
+
+.function-card {
+  transition: all 0.2s ease-in-out;
+}
+
+.function-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+} 

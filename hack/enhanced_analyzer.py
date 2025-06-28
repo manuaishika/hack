@@ -360,6 +360,19 @@ def rewrite_inefficient_code(function_code: str, api_key: str) -> str:
     except Exception as e:
         return function_code
 
+def generate_diff(original_code: str, cleaned_code: str, filename: str) -> str:
+    """
+    generate a unified diff showing suggested deletions.
+    """
+    original_lines = original_code.splitlines(keepends=True)
+    cleaned_lines = cleaned_code.splitlines(keepends=True)
+    diff = difflib.unified_diff(
+        original_lines, cleaned_lines,
+        fromfile=filename, tofile=filename + ".cleaned",
+        lineterm=''
+    )
+    return ''.join(diff)
+
 # --- update main to support new flags and features ---
 def main():
     """main function for enhanced code analysis with phase 2 features"""
