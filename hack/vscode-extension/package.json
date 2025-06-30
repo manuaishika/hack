@@ -1,0 +1,75 @@
+{
+  "name": "ecosift-code-cleaner",
+  "displayName": "Ecosift Code Cleaner",
+  "description": "detect dead code and estimate energy impact in python files",
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:python",
+    "onCommand:ecosift.runAnalysis"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "ecosift.runAnalysis",
+        "title": "run ecosift code clean analysis",
+        "category": "Ecosift"
+      },
+      {
+        "command": "ecosift.showDeadCodeSummary",
+        "title": "show dead code summary",
+        "category": "Ecosift"
+      }
+    ],
+    "configuration": {
+      "title": "Ecosift Code Cleaner",
+      "properties": {
+        "ecosift.pythonPath": {
+          "type": "string",
+          "default": "python",
+          "description": "path to python executable"
+        },
+        "ecosift.analyzerPath": {
+          "type": "string",
+          "default": "./backend/enhanced_analyzer.py",
+          "description": "path to the enhanced analyzer script"
+        },
+        "ecosift.autoAnalyze": {
+          "type": "boolean",
+          "default": true,
+          "description": "automatically analyze files on save"
+        },
+        "ecosift.showWarnings": {
+          "type": "boolean",
+          "default": true,
+          "description": "show warning decorations for dead code"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.74.0",
+    "@types/node": "16.x",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "child_process": "^1.0.2"
+  }
+} 
